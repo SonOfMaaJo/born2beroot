@@ -1,0 +1,94 @@
+Procédure de transfert de la machine virtuelle Born2beRoot
+
+Ce guide détaille les étapes pour déplacer votre VM VirtualBox d'un ordinateur (PC personnel) à un autre (PC de l'école).
+
+---
+### Partie 1 : Sur votre PC personnel - Exporter la VM
+---
+
+L'exportation crée un unique fichier compressé (.ova) contenant votre VM, qui est facile à transférer.
+
+1.  **Ouvrez VirtualBox** sur votre PC personnel.
+
+2.  Allez dans le menu `Fichier` > `Exporter un appareil` (ou `Export Appliance`).
+
+3.  **Sélectionnez la VM** : Dans la liste, choisissez votre machine virtuelle "Born2beRoot", puis cliquez sur `Suivant`.
+
+4.  **Choisissez le format et l'emplacement** :
+    *   **Format** : Laissez `Open Virtualization Format 2.0`. C'est le plus compatible.
+    *   **Fichier** : Choisissez où enregistrer le fichier `.ova` (par exemple, sur votre Bureau). Donnez-lui un nom clair comme `Born2beRoot-backup.ova`.
+    *   Cliquez sur `Suivant`.
+
+5.  **Laissez les paramètres par défaut** dans la fenêtre suivante et cliquez sur `Exporter`.
+
+L'exportation peut prendre un certain temps et le fichier `.ova` final sera assez volumineux (plusieurs Go).
+
+---
+### Partie 2 : Sur le PC de l'école - Installer VirtualBox
+---
+
+Si VirtualBox n'est pas déjà installé sur le PC de l'école.
+
+1.  **Téléchargez VirtualBox** depuis le site officiel : https://www.virtualbox.org/wiki/Downloads
+    *   Prenez la version correspondant au système d'exploitation du PC de l'école (Windows, macOS, ou Linux).
+
+2.  **Installez VirtualBox** en suivant les instructions.
+
+3.  **(Très important pour Linux)** Si le PC de l'école est sous Linux (comme Debian/Ubuntu), vous devez ajouter votre utilisateur au groupe `vboxusers` pour avoir le droit de gérer les VM et les périphériques USB.
+    ```bash
+    sudo adduser $USER vboxusers
+    ```
+    Après avoir lancé cette commande, vous devrez **fermer votre session et vous reconnecter** (ou redémarrer le PC) pour que le changement soit pris en compte.
+
+---
+### Partie 3 : Transférer et Importer la VM
+---
+
+1.  **Transférez le fichier `.ova`** :
+    Copiez le fichier `Born2beRoot-backup.ova` (créé à la Partie 1) de votre PC personnel vers le PC de l'école.
+    *   **Méthode simple** : Utilisez une clé USB ou un disque dur externe.
+    *   **Méthode réseau** : Utilisez `scp` (comme décrit dans votre README) si les deux machines sont sur le même réseau.
+
+2.  **Ouvrez VirtualBox** sur le PC de l'école.
+
+3.  **Importez la VM** :
+    *   Allez dans le menu `Fichier` > `Importer un appareil` (ou `Import Appliance`).
+    *   **Source** : Choisissez "Fichier" (Local File System) et sélectionnez votre fichier `Born2beRoot-backup.ova`.
+    *   Cliquez sur `Suivant`.
+
+4.  **Vérifiez les paramètres** : VirtualBox vous montrera les paramètres de la VM qu'il s'apprête à créer. Vous pouvez les laisser par défaut. Cliquez sur `Importer`.
+
+L'importation va décompresser le fichier et recréer votre machine virtuelle à l'identique.
+
+---
+### Partie 4 : Sur le PC de l'école - Configuration réseau et Vérification
+---
+
+C'est l'étape la plus importante pour que votre serveur soit accessible sur le réseau de l'école.
+
+1.  **Configurez la carte réseau de la VM** :
+    *   Dans VirtualBox, sélectionnez votre VM "Born2beRoot" (sans la démarrer).
+    *   Allez dans `Configuration` > `Réseau`.
+    *   La carte réseau (Adaptateur 1) est probablement configurée en `NAT`. Changez-la pour **`Accès par pont`** (ou **`Bridged Adapter`**).
+    *   Dans le champ `Nom` juste en dessous, sélectionnez l'interface réseau active du PC de l'école (par exemple `enp0s3`, `eth0`, ou le nom de la carte Wi-Fi).
+
+    **Pourquoi "Accès par pont" ?** Cela permet à votre VM d'obtenir sa propre adresse IP sur le réseau de l'école, comme si c'était un ordinateur physique distinct. C'est indispensable pour que d'autres puissent y accéder.
+
+2.  **Démarrez la VM**.
+
+3.  **Trouvez la nouvelle adresse IP de la VM** :
+    *   Connectez-vous à votre VM (via la fenêtre de VirtualBox).
+    *   Dans le terminal de la VM, tapez :
+        ```bash
+        hostname -I
+        ```
+    *   Notez la nouvelle adresse IP (elle sera différente de celle que vous aviez chez vous).
+
+4.  **Vérification finale** :
+    *   **Depuis le PC de l'école**, ouvrez un terminal et essayez de vous connecter en SSH :
+        ```bash
+        ssh votre_login@<NOUVELLE_ADRESSE_IP> -p 4242
+        ```
+    *   Si la connexion SSH fonctionne, ouvrez un navigateur web sur le PC de l'école et allez sur `http://<NOUVELLE_ADRESSE_IP>`. Vous devriez voir la page d'accueil de votre site WordPress.
+
+Votre VM est maintenant transférée et fonctionnelle sur le PC de l'école !
