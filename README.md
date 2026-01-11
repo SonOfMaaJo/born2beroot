@@ -584,6 +584,58 @@ Voici quelques commandes pour vérifier que tout fonctionne comme prévu :
 
 ---
 
+### FTP Service with vsftpd (Bonus)
+
+**Why use vsftpd?**
+vsftpd (Very Secure FTP Daemon) is an FTP server that allows you to upload and manage files on your server from your host machine. This is particularly useful for managing your WordPress site (uploading themes, plugins, or editing configuration files) using a graphical client like FileZilla, rather than using the command line for everything.
+
+#### 1. Installation and Firewall
+```bash
+sudo apt install vsftpd
+sudo ufw allow 21/tcp
+sudo ufw allow 40000:40005/tcp
+sudo ufw reload
+```
+
+#### 2. Configuration
+1.  Edit the configuration file:
+    ```bash
+    sudo nano /etc/vsftpd.conf
+    ```
+2.  Ensure the following settings are set (uncomment or add them) to enable uploads and secure the connection:
+    ```ini
+    local_enable=YES
+    write_enable=YES
+    chroot_local_user=YES
+    allow_writeable_chroot=YES
+    pasv_min_port=40000
+    pasv_max_port=40005
+    # Optional: Direct access to WordPress folder
+    local_root=/srv/wordpress/html
+    ```
+3.  Restart the service:
+    ```bash
+    sudo systemctl restart vsftpd
+    ```
+
+#### 3. Permissions for WordPress Management
+To allow your user to modify WordPress files via FTP, add them to the web server group:
+```bash
+# Replace 'your_username' with your actual username
+sudo usermod -aG www-data your_username
+sudo chown -R www-data:www-data /srv/wordpress/html
+sudo chmod -R 775 /srv/wordpress/html
+```
+*(You may need to logout and login again for group changes to take effect).*
+
+#### 4. Accessing via FileZilla
+*   **Host:** Your VM IP Address
+*   **Protocol:** FTP - File Transfer Protocol
+*   **Encryption:** Require explicit FTP over TLS (Recommended)
+*   **User/Password:** Your VM credentials
+
+---
+
 ### Fail2Ban Protection (Bonus)
 
 **Why use Fail2Ban?**
