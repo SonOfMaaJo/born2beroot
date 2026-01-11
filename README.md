@@ -29,19 +29,70 @@ For this project, a choice was made between Debian, a community-driven distribut
     *   **Less Desktop-Friendly:** Historically more focused on server environments than on desktop use.
 
 ### AppArmor vs SELinux
-Since I am using Debian, **AppArmor** is the security module in use.
-*   **AppArmor:** Path-based MAC (Mandatory Access Control). It is generally considered easier to configure via profiles.
-*   **SELinux:** Label-based MAC. It is more powerful but significantly more complex to manage.
+
+For Mandatory Access Control (MAC), Debian defaults to AppArmor, while the RHEL ecosystem (Rocky Linux) uses SELinux. **AppArmor** was used for this project, aligning with the OS default and its simpler management philosophy.
+
+#### AppArmor
+*   **Pros:**
+    *   **Ease of Use:** Profiles are simple text files with an intuitive syntax, making it much easier to learn and manage than SELinux.
+    *   **Path-Based Logic:** Rules are based on file paths (e.g., `/usr/sbin/nginx`), which is straightforward to understand and debug.
+    *   **Good Default Security:** Provides a significant security improvement over standard permissions with less administrative overhead.
+*   **Cons:**
+    *   **Less Granular:** Being path-based makes it less granular than SELinux. For instance, it can't easily distinguish between two different files if they are located at the same path.
+
+#### SELinux (Security-Enhanced Linux)
+*   **Pros:**
+    *   **Extremely Granular:** Its label-based system (where every file and process has a security context) allows for incredibly detailed and powerful security policies.
+    *   **Robustness:** Because it's not tied to paths, its security model is more robust against attempts to bypass rules by moving or renaming files.
+*   **Cons:**
+    *   **High Complexity:** Has a very steep learning curve. Writing and debugging SELinux policies is a specialized skill.
+    *   **Troubleshooting:** Can be difficult to troubleshoot, leading many administrators to temporarily (and insecurely) disable it to solve problems.
 
 ### UFW vs firewalld
-**UFW** (Uncomplicated Firewall) was chosen for its simplicity on Debian.
-*   **UFW:** A simplified interface for iptables/nftables, standard on Debian/Ubuntu.
-*   **firewalld:** A dynamic daemon to manage firewalls with support for network zones, standard on RHEL/Rocky.
+
+Both UFW and firewalld are frontends for managing the kernel's firewall capabilities. **UFW** was chosen for this project due to its straightforward approach, which is a perfect fit for a single server with static firewall needs.
+
+#### UFW (Uncomplicated Firewall)
+*   **Pros:**
+    *   **Simplicity:** Designed to be extremely easy to use. The command syntax is simple and direct (e.g., `ufw allow ssh`).
+    *   **Lightweight:** It's a simple script-based interface, not a constantly running daemon, which makes it very resource-efficient.
+    *   **Ideal for Static Setups:** Perfect for servers or workstations where firewall rules do not change often.
+*   **Cons:**
+    *   **Less Flexible:** It lacks the concept of dynamic zones, making it less suitable for environments where network trust levels change frequently (like a laptop).
+    *   **Requires Reload:** Rule changes typically require a reload of the firewall to be applied.
+
+#### firewalld
+*   **Pros:**
+    *   **Dynamic Zones:** Its core feature allows assigning network interfaces to different zones (`public`, `home`, `trusted`), each with its own policy, which is highly flexible.
+    *   **Runtime Changes:** Rules can be applied instantly without dropping existing connections, a major benefit for live servers.
+    *   **Service Integration:** Well-integrated with system services, allowing rules like `add-service=http` without needing to know the port number.
+*   **Cons:**
+    *   **More Complex:** The concept of zones and the distinction between runtime vs. permanent configuration adds a layer of complexity.
+    *   **Slightly More Overhead:** It runs as a background daemon, consuming more system resources than UFW.
 
 ### VirtualBox vs UTM
-**VirtualBox** was used as the hypervisor.
-*   **VirtualBox:** A versatile, cross-platform Type 2 hypervisor.
-*   **UTM:** A macOS-specific hypervisor based on QEMU, primarily used for ARM/x86 emulation.
+
+Choosing a hypervisor is crucial for virtualization projects. **VirtualBox** was selected for this project due to its widespread compatibility, ease of use across different host operating systems, and suitability for learning environments.
+
+#### VirtualBox
+*   **Pros:**
+    *   **Cross-Platform Compatibility:** Runs on Windows, macOS, Linux, and Solaris hosts, making it highly versatile for different development environments.
+    *   **Ease of Use:** Features a user-friendly graphical interface, making it accessible for beginners.
+    *   **Widespread Adoption:** Large user base and extensive documentation available.
+    *   **Free and Open Source:** Available at no cost for personal and educational use.
+*   **Cons:**
+    *   **Type 2 Hypervisor:** Runs on top of a host OS, which can introduce some performance overhead compared to Type 1 hypervisors.
+    *   **Limited Advanced Features:** May lack some of the very advanced features found in enterprise-grade hypervisors (e.g., vMotion, sophisticated clustering).
+
+#### UTM
+*   **Pros:**
+    *   **macOS Native:** Specifically designed for macOS, leveraging Apple's virtualization frameworks (e.g., Hypervisor.framework) for better performance on Apple Silicon Macs.
+    *   **QEMU Backend:** Utilizes QEMU, allowing for both virtualization (running x86 VMs on Intel Macs) and emulation (running x86 VMs on Apple Silicon Macs).
+    *   **Streamlined for macOS:** Integrates well with the macOS environment.
+*   **Cons:**
+    *   **macOS-Specific:** Limited to macOS hosts, which restricts its use to a single platform.
+    *   **Steeper Learning Curve:** While user-friendly, setting up complex configurations or emulation can be more involved than VirtualBox.
+    *   **Less Cross-Platform Support:** Not available on Windows or Linux hosts, making collaboration across different platforms more challenging.
 
 ### Apt vs Aptitude
 
@@ -155,7 +206,45 @@ scp -P 4242 /path/to/local/file user@IP_ADDRESS:/path/to/destination/
 
 ---
 
-### 2. User and Group Management & Hostname
+### 2. UFW Firewall Configuration
+UFW (Uncomplicated Firewall) is used to manage incoming and outgoing traffic.
+
+**Installation and Activation:**
+```bash
+sudo apt update
+sudo apt install ufw
+sudo ufw enable
+```
+
+**Managing Rules:**
+1.  **Allow SSH port (4242):**
+    ```bash
+    sudo ufw allow 4242
+    ```
+2.  **Allow HTTP (80) - for Bonus:**
+    ```bash
+    sudo ufw allow 80
+    ```
+3.  **Check Status and Rules:**
+    ```bash
+    sudo ufw status verbose
+    ```
+4.  **Delete a Rule:**
+    First, get the rule number:
+    ```bash
+    sudo ufw status numbered
+    ```
+    Then, delete it (replace `X` with the number):
+    ```bash
+    sudo ufw delete X
+    ```
+
+**Verification:**
+*   `sudo ufw status` should show "active" and the allowed ports.
+
+---
+
+### 3. User and Group Management & Hostname
 
 #### A. User Management
 
@@ -253,7 +342,7 @@ Understanding where user/group data is stored is essential.
 
 ---
 
-### 3. Sudo Configuration
+### 4. Sudo Configuration
 Sudo rules are defined in `/etc/sudoers` using `visudo`.
 
 **Requirements:**
@@ -280,7 +369,7 @@ Defaults    secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin
 
 ---
 
-### 4. Password Policy
+### 5. Password Policy
 Managed via `/etc/login.defs` and `libpam-pwquality`.
 
 **Installation:**
@@ -310,7 +399,7 @@ sudo chage -W 7 <username>
 
 ---
 
-### 5. Monitoring Script
+### 6. Monitoring Script
 
 The `monitoring.sh` script is designed to display system information on all terminals every 10 minutes.
 
@@ -492,6 +581,74 @@ Voici quelques commandes pour vérifier que tout fonctionne comme prévu :
     ```bash
     ls -l /srv/wordpress/html/
     ```
+
+---
+
+### Fail2Ban Protection (Bonus)
+
+**Why use Fail2Ban?**
+Fail2Ban is an intrusion prevention software framework that protects computer servers from brute-force attacks. It works by monitoring system logs (e.g., `/var/log/auth.log`) for suspicious activity, such as too many failed login attempts. When it detects such behavior, it updates the firewall rules to reject new connections from those IP addresses for a configurable amount of time.
+
+#### 1. Installation and Activation
+```bash
+sudo apt update
+sudo apt install fail2ban
+sudo systemctl enable --now fail2ban
+```
+
+#### 2. Configuration
+It is recommended to use a `jail.local` file instead of modifying `jail.conf` directly to prevent updates from overwriting your changes.
+
+1.  **Create the local configuration file:**
+    ```bash
+    sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+    ```
+
+2.  **Configure for SSH:**
+    ```bash
+    sudo nano /etc/fail2ban/jail.local
+    ```
+    *Locate the `[sshd]` section and ensure it points to your custom SSH port:*
+    ```ini
+    [sshd]
+    enabled = true
+    port    = 4242
+    logpath = %(sshd_log)s
+    backend = %(sshd_backend)s
+    maxretry = 3
+    bantime = 10m
+    ```
+
+3.  **Restart the service:**
+    ```bash
+    sudo systemctl restart fail2ban
+    ```
+
+#### 3. Verification and Usage
+Here is how to check if Fail2Ban is working correctly:
+
+*   **General Status:**
+    ```bash
+    sudo fail2ban-client status
+    ```
+*   **Specific Status for SSH** (to see currently banned IPs):
+    ```bash
+    sudo fail2ban-client status sshd
+    ```
+*   **Check Logs:**
+    ```bash
+    sudo tail -f /var/log/fail2ban.log
+    ```
+*   **Manually Unban an IP:**
+    ```bash
+    sudo fail2ban-client set sshd unbanip <IP_ADDRESS>
+    ```
+
+---
+
+## AI Usage
+
+Artificial Intelligence was used to structure and ensure the coherence of this README, as well as to troubleshoot installation and connection issues related to the various services installed on the server.
 
 ---
 
